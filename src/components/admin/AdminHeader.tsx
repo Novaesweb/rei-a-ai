@@ -10,8 +10,11 @@ import {
   Bell,
   Crown,
   Play,
+  MessageSquare,
+  Globe,
 } from 'lucide-react'
 import { useStore } from '../../context/StoreContext'
+import { getStoredConnectIds } from '../../services/connectService'
 
 export const AdminHeader: React.FC = () => {
   const {
@@ -24,9 +27,11 @@ export const AdminHeader: React.FC = () => {
     setSoundAlertsEnabled,
     playAlertSound,
     config,
+    unreadMessagesCount,
   } = useStore()
 
   const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length
+  const { nxId } = getStoredConnectIds()
 
   return (
     <header className="sticky top-0 z-40 bg-[#0d081f] border-b border-[#281c52]">
@@ -158,6 +163,42 @@ export const AdminHeader: React.FC = () => {
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>Meu Plano & Consumo</span>
+          </button>
+
+          {/* Aba 5: Comunicados do Master */}
+          <button
+            onClick={() => setActiveAdminTab('messages')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeAdminTab === 'messages'
+                ? 'bg-gradient-to-r from-[#8b2cff] to-[#ec4899] text-white shadow-neon-primary'
+                : 'text-slate-400 hover:text-white hover:bg-[#1a1236]'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>Mensagens</span>
+            {unreadMessagesCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-[#ec4899] text-white animate-pulse">
+                {unreadMessagesCount}
+              </span>
+            )}
+          </button>
+
+          {/* Aba 6: Conexão Master */}
+          <button
+            onClick={() => setActiveAdminTab('connect')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeAdminTab === 'connect'
+                ? 'bg-gradient-to-r from-[#8b2cff] to-[#ec4899] text-white shadow-neon-primary'
+                : 'text-slate-400 hover:text-white hover:bg-[#1a1236]'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-[#8b2cff]" />
+            <span>Conexão Master</span>
+            {nxId && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[#25184a] text-slate-300 font-mono">
+                {nxId}
+              </span>
+            )}
           </button>
         </div>
       </div>

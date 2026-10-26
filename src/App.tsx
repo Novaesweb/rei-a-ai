@@ -15,10 +15,14 @@ import { AdminOrders } from './components/admin/AdminOrders'
 import { AdminProducts } from './components/admin/AdminProducts'
 import { AdminSettings } from './components/admin/AdminSettings'
 import { AdminPlan } from './components/admin/AdminPlan'
+import { AdminOwnerMessages } from './components/admin/AdminOwnerMessages'
+import { ConnectGate } from './components/admin/ConnectGate'
+import { SiteSuspendedScreen } from './components/SiteSuspendedScreen'
 
 export const AppContent: React.FC = () => {
   const {
     currentView,
+    setCurrentView,
     activeAdminTab,
     categories,
     products,
@@ -27,6 +31,8 @@ export const AppContent: React.FC = () => {
     isCheckoutModalOpen,
     setIsCheckoutModalOpen,
     trackedOrderId,
+    storeAvailability,
+    setUnreadMessagesCount,
   } = useStore()
 
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string | null>(null)
@@ -47,8 +53,27 @@ export const AppContent: React.FC = () => {
           {activeAdminTab === 'products' && <AdminProducts />}
           {activeAdminTab === 'settings' && <AdminSettings />}
           {activeAdminTab === 'plan' && <AdminPlan />}
+          {activeAdminTab === 'messages' && (
+            <AdminOwnerMessages onUnreadChange={setUnreadMessagesCount} />
+          )}
+          {activeAdminTab === 'connect' && <ConnectGate />}
         </main>
       </div>
+    )
+  }
+
+  // Se a loja estiver sob manutenção ou suspensão administrativa do Master
+  const isSuspendedOrMaintenance =
+    storeAvailability.status === 'maintenance' ||
+    storeAvailability.status === 'suspended' ||
+    storeAvailability.status === 'archived'
+
+  if (isSuspendedOrMaintenance) {
+    return (
+      <SiteSuspendedScreen
+        availability={storeAvailability}
+        onAccessAdmin={() => setCurrentView('admin')}
+      />
     )
   }
 

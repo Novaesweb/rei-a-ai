@@ -19,12 +19,23 @@ import {
 } from '../data/initialData'
 import { reportOrderAcceptedToMaster } from '../lib/novaeswebUsage'
 import { playOrderAlertSound } from '../lib/sound'
+import {
+  StoreAvailability,
+  subscribeStoreAvailability,
+} from '../services/storeAvailabilityService'
+import { getStoredConnectIds } from '../services/connectService'
+import { getOwnerMessages } from '../services/ownerMessageService'
 
 interface StoreContextType {
   // Store Config & Status
   config: StoreConfig
   updateConfig: (newConfig: Partial<StoreConfig>) => void
   isStoreOpenNow: boolean
+  storeAvailability: StoreAvailability
+
+  // Messages & Connect
+  unreadMessagesCount: number
+  setUnreadMessagesCount: (count: number) => void
   
   // Catalog
   categories: Category[]
@@ -80,8 +91,8 @@ interface StoreContextType {
   // Navigation & Admin
   currentView: 'store' | 'admin'
   setCurrentView: (view: 'store' | 'admin') => void
-  activeAdminTab: 'orders' | 'products' | 'settings' | 'plan'
-  setActiveAdminTab: (tab: 'orders' | 'products' | 'settings' | 'plan') => void
+  activeAdminTab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect'
+  setActiveAdminTab: (tab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect') => void
 
   // Stats
   acceptedCountMonth: number
@@ -241,7 +252,32 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Navigation
   const [currentView, setCurrentView] = useState<'store' | 'admin'>('store')
-  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'products' | 'settings' | 'plan'>('orders')
+  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect'>('orders')
+
+  // Master Availability & Messages
+  const [storeAvailability, setStoreAvailability] = useState<StoreAvailability>({
+    status: 'active',
+    blockMode: null,
+    message: null,
+    returnAt: null,
+  })
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0)
+
+  // Subscrição de Disponibilidade Master
+  useEffect(() => {
+    const storeId = getStoredConnectIds().storeId || 'acai-do-rei-canoas'
+    const unsub = subscribeStoreAvailability(storeId, (avail) => {
+      setStoreAvailability(avail)
+    })
+
+    // Checa mensagens iniciais
+    getOwnerMessages(storeId).then((msgs) => {
+      const unread = msgs.filter((m) => !m.read_at).length
+      setUnreadMessagesCount(unread)
+    })
+
+    return unsub
+  }, [])
 
   // Save changes to localStorage
   useEffect(() => {
@@ -492,6 +528,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         config,
         updateConfig,
         isStoreOpenNow,
+        storeAvailability,
+        unreadMessagesCount,
+        setUnreadMessagesCount,
         categories,
         products,
         addProduct,
