@@ -108,8 +108,8 @@ interface StoreContextType {
   // Navigation & Admin
   currentView: 'store' | 'admin'
   setCurrentView: (view: 'store' | 'admin') => void
-  activeAdminTab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect'
-  setActiveAdminTab: (tab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect') => void
+  activeAdminTab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect' | 'addons'
+  setActiveAdminTab: (tab: 'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect' | 'addons') => void
 
   // Stats
   acceptedCountMonth: number
@@ -280,7 +280,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Navigation
   const [currentView, setCurrentView] = useState<'store' | 'admin'>('store')
-  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect'>('orders')
+  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'products' | 'settings' | 'plan' | 'messages' | 'connect' | 'addons'>('orders')
 
   // Master Availability & Messages
   const [storeAvailability, setStoreAvailability] = useState<StoreAvailability>({

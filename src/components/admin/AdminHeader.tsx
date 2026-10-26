@@ -14,6 +14,7 @@ import {
   Globe,
   LogOut,
   User,
+  Puzzle,
 } from 'lucide-react'
 import { useStore } from '../../context/StoreContext'
 import { getStoredConnectIds } from '../../services/connectService'
@@ -195,6 +196,19 @@ export const AdminHeader: React.FC = () => {
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
             <span>Meu Plano & Consumo</span>
+          </button>
+
+          {/* Aba 5: Adicionais (Prompt 3 - Central de Adicionais) */}
+          <button
+            onClick={() => setActiveAdminTab('addons')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+              activeAdminTab === 'addons'
+                ? 'bg-gradient-to-r from-[#8b2cff] to-[#ec4899] text-white shadow-neon-primary'
+                : 'text-slate-400 hover:text-white hover:bg-[#1a1236]'
+            }`}
+          >
+            <Puzzle className="w-4 h-4 text-[#ec4899]" />
+            <span>Adicionais</span>
           </button>
 
           {/* Aba 5: Comunicados do Master */}

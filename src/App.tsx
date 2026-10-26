@@ -16,6 +16,7 @@ import { AdminProducts } from './components/admin/AdminProducts'
 import { AdminSettings } from './components/admin/AdminSettings'
 import { AdminPlan } from './components/admin/AdminPlan'
 import { AdminOwnerMessages } from './components/admin/AdminOwnerMessages'
+import { AdminAddons } from './components/admin/AdminAddons'
 import { ConnectGate } from './components/admin/ConnectGate'
 import { AdminLogin } from './components/admin/AdminLogin'
 import { SiteSuspendedScreen } from './components/SiteSuspendedScreen'
@@ -62,6 +63,7 @@ export const AppContent: React.FC = () => {
           {activeAdminTab === 'messages' && (
             <AdminOwnerMessages onUnreadChange={setUnreadMessagesCount} />
           )}
+          {activeAdminTab === 'addons' && <AdminAddons />}
           {activeAdminTab === 'connect' && <ConnectGate />}
         </main>
       </div>
