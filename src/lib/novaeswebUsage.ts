@@ -33,6 +33,46 @@ const STORAGE_KEYS = {
 }
 
 /**
+ * Retorna a competência no fuso America/Sao_Paulo (ex: "2026-10")
+ */
+export function getSaoPauloCompetence(date: Date | string = new Date()): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+  })
+  return formatter.format(d).slice(0, 7)
+}
+
+/**
+ * Retorna a chave de dia no fuso America/Sao_Paulo (ex: "26/10")
+ */
+export function getSaoPauloDayKey(date: Date | string = new Date()): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+  })
+  return formatter.format(d)
+}
+
+/**
+ * Retorna o rótulo da competência em português (ex: "Outubro de 2026")
+ */
+export function getSaoPauloCompetenceLabel(competenceStr: string): string {
+  const [yearStr, monthStr] = competenceStr.split('-')
+  const monthNum = parseInt(monthStr, 10)
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  const name = monthNames[monthNum - 1] || monthStr
+  return `${name} de ${yearStr}`
+}
+
+/**
  * Cache local de deduplicação para garantir envio único por pedido aceito
  */
 function getReportedAcceptedOrders(): Set<string> {

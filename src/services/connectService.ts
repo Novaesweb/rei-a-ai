@@ -34,18 +34,18 @@ export function getOrCreateIdempotencyKey(): string {
 /**
  * Obtém os identificadores oficiais persistidos
  */
-export function getStoredConnectIds(): { storeId: string | null; nxId: string | null; siteName: string | null } {
+export function getStoredConnectIds(): { storeId: string; nxId: string; siteName: string } {
   const storeId =
     localStorage.getItem(STORAGE_KEYS.STORE_ID) ||
     import.meta.env.VITE_NOVAESWEB_STORE_ID ||
     import.meta.env.VITE_STORE_ID ||
-    null
+    '3b15518d-2edc-43d7-85ac-6ece2a82d40f'
 
   const nxId =
     localStorage.getItem(STORAGE_KEYS.NX_ID) ||
     import.meta.env.VITE_NOVAESWEB_NX_ID ||
     import.meta.env.VITE_STORE_NX_ID ||
-    null
+    'NX-3B15518D2EDC43D785AC6ECE2A82D40F'
 
   const siteName = localStorage.getItem(STORAGE_KEYS.SITE_NAME) || 'Açaí do Rei'
 
