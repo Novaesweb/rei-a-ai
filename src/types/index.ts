@@ -49,7 +49,7 @@ export interface CartItem {
   totalPrice: number
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected'
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'delivered' | 'rejected' | 'cancelled'
 export type DeliveryType = 'delivery' | 'pickup'
 export type PaymentMethod = 'pix' | 'money' | 'card'
 
@@ -70,6 +70,8 @@ export interface Order {
   acceptedRecorded?: boolean // deduplication flag
   status: OrderStatus
   rejectionReason?: string
+  cancellationCategory?: string
+  hidden?: boolean
   deliveryType: DeliveryType
   customer: CustomerInfo
   items: CartItem[]

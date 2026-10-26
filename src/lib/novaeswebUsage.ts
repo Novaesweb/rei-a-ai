@@ -1,11 +1,43 @@
 import { supabase } from './supabaseClient'
+import { getStoredConnectIds } from '../services/connectService'
 
-// Deduplication cache stored in localStorage to prevent double-counting across reloads
-const DEDUP_KEY = 'novaesweb_reported_accepted_orders'
+export type OrderLifecycleEventType =
+  | 'created'
+  | 'accepted'
+  | 'rejected'
+  | 'delivered'
+  | 'cancelled'
+  | 'hidden'
 
-function getReportedOrders(): Set<string> {
+export type OrderCancellationCategory =
+  | 'cliente_desistiu'
+  | 'endereco_fora_raio'
+  | 'item_esgotado'
+  | 'estabelecimento_lotado'
+  | 'erro_operacional_loja'
+  | 'falha_comunicacao'
+  | 'outros'
+
+export interface RecordOrderEventParams {
+  orderRef: string
+  eventType: OrderLifecycleEventType
+  statusFrom?: string
+  statusTo?: string
+  reasonCategory?: OrderCancellationCategory
+  occurredAt?: string
+}
+
+const STORAGE_KEYS = {
+  DEDUP_ACCEPTED: 'novaesweb_reported_accepted_orders',
+  PENDING_QUEUE: 'novaesweb_pending_order_events',
+}
+
+/**
+ * Cache local de deduplicação para garantir envio único por pedido aceito
+ */
+function getReportedAcceptedOrders(): Set<string> {
   try {
-    const raw = localStorage.getItem(DEDUP_KEY)
+    const raw = localStorage.getItem(STORAGE_KEYS.DEDUP_ACCEPTED)
     if (!raw) return new Set()
     return new Set(JSON.parse(raw))
   } catch {
@@ -13,80 +45,191 @@ function getReportedOrders(): Set<string> {
   }
 }
 
-function markOrderReported(orderId: string): void {
+function markOrderAcceptedLocally(orderRef: string): void {
   try {
-    const set = getReportedOrders()
-    set.add(String(orderId))
-    localStorage.setItem(DEDUP_KEY, JSON.stringify(Array.from(set)))
+    const set = getReportedAcceptedOrders()
+    set.add(String(orderRef))
+    localStorage.setItem(STORAGE_KEYS.DEDUP_ACCEPTED, JSON.stringify(Array.from(set)))
   } catch (err) {
     console.warn('[NovaesWeb] Falha ao persistir cache de deduplicação:', err)
   }
 }
 
-export function isOrderAlreadyReported(orderId: string): boolean {
-  return getReportedOrders().has(String(orderId))
+export function isOrderAlreadyCounted(orderRef: string): boolean {
+  return getReportedAcceptedOrders().has(String(orderRef))
 }
 
 /**
- * Reporta pedido aceito ao Painel Master da NovaesWeb.
- * Deduplicação rígida: executa apenas uma única vez por pedido.
- * Privacidade total: NÃO envia valores financeiros, dados pessoais ou itens comprados.
+ * Fila offline-first para retentativa segura de eventos de pedidos
+ */
+interface PendingEventItem {
+  id: string
+  params: RecordOrderEventParams
+  storeId: string
+  attempts: number
+  queuedAt: string
+}
+
+function getPendingEvents(): PendingEventItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.PENDING_QUEUE)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+function queuePendingEvent(params: RecordOrderEventParams, storeId: string): void {
+  try {
+    const items = getPendingEvents()
+    items.push({
+      id: `${params.orderRef}-${params.eventType}-${Date.now()}`,
+      params,
+      storeId,
+      attempts: 0,
+      queuedAt: new Date().toISOString(),
+    })
+    localStorage.setItem(STORAGE_KEYS.PENDING_QUEUE, JSON.stringify(items))
+  } catch (err) {
+    console.warn('[NovaesWeb] Erro ao enfileirar evento pendente:', err)
+  }
+}
+
+function removePendingEvent(eventId: string): void {
+  try {
+    const items = getPendingEvents().filter((i) => i.id !== eventId)
+    localStorage.setItem(STORAGE_KEYS.PENDING_QUEUE, JSON.stringify(items))
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Registra evento oficial de ciclo de vida do pedido no Supabase Central.
+ * 
+ * Regras Obrigatórias (Caderno 09 / Prompt 5):
+ * 1. Apenas pedidos ACEITOS entram na franquia e faturamento da NovaesWeb.
+ * 2. Pedidos criados/rejeitados NÃO consom a franquia.
+ * 3. Pedidos aceitos e depois cancelados CONTINUAM contabilizados.
+ * 4. Deduplicação técnica rígida: cada pedido conta uma única vez.
+ * 5. Privacidade total: NUNCA envia valor, itens, carrinho ou dados pessoais do cliente.
+ */
+export async function recordOrderLifecycleEvent(
+  params: RecordOrderEventParams
+): Promise<{ success: boolean; alreadyCounted?: boolean; error?: string }> {
+  const storeId =
+    getStoredConnectIds().storeId ||
+    import.meta.env.VITE_NOVAESWEB_STORE_ID ||
+    import.meta.env.VITE_STORE_ID ||
+    'acai-do-rei-canoas'
+
+  const orderRef = String(params.orderRef)
+  const occurredAt = params.occurredAt || new Date().toISOString()
+
+  // Se for evento de aceite e já foi reportado localmente, evita tráfego redundante
+  if (params.eventType === 'accepted' && isOrderAlreadyCounted(orderRef)) {
+    console.info(`[NovaesWeb] Pedido ${orderRef} já contabilizado anteriormente. Deduplicação ativa.`)
+    return { success: true, alreadyCounted: true }
+  }
+
+  try {
+    // 1. Invoca a RPC canônica novaesweb_record_order_event
+    const { data, error: rpcError } = await supabase.rpc('novaesweb_record_order_event', {
+      p_store_id: storeId,
+      p_order_ref: orderRef,
+      p_event_type: params.eventType,
+      p_status_from: params.statusFrom || null,
+      p_status_to: params.statusTo || null,
+      p_reason_category: params.reasonCategory || null,
+      p_occurred_at: occurredAt,
+    })
+
+    if (!rpcError) {
+      if (params.eventType === 'accepted') {
+        markOrderAcceptedLocally(orderRef)
+      }
+      return {
+        success: true,
+        alreadyCounted: Boolean(data?.already_counted),
+      }
+    }
+
+    // 2. Fallback de retrocompatibilidade para versões anteriores se for aceite
+    if (params.eventType === 'accepted') {
+      const { error: fallbackError } = await supabase.rpc('novaesweb_record_order_accepted', {
+        p_store_id: storeId,
+        p_order_ref: orderRef,
+        p_accepted_at: occurredAt,
+      })
+
+      if (!fallbackError) {
+        markOrderAcceptedLocally(orderRef)
+        return { success: true }
+      }
+    }
+
+    // Enfileira para retentativa se for falha transitória/rede
+    queuePendingEvent(params, storeId)
+    return { success: true, error: rpcError.message }
+  } catch (err: any) {
+    console.error('[NovaesWeb] Falha de conexão ao emitir evento de pedido:', err)
+    // Falha silenciosa para NUNCA travar a operação de venda do lojista
+    queuePendingEvent(params, storeId)
+    if (params.eventType === 'accepted') {
+      markOrderAcceptedLocally(orderRef)
+    }
+    return { success: false, error: err?.message || 'Erro de conexão' }
+  }
+}
+
+/**
+ * Função utilitária para compatibilidade com o módulo de aceite
  */
 export async function reportOrderAcceptedToMaster(order: {
   id: string
   createdAt?: string
   acceptedAt?: string
-}): Promise<{ success: boolean; deduplicated?: boolean; error?: string }> {
-  const orderRef = String(order.id)
+}) {
+  return recordOrderLifecycleEvent({
+    orderRef: order.id,
+    eventType: 'accepted',
+    statusFrom: 'pending',
+    statusTo: 'preparing',
+    occurredAt: order.acceptedAt || order.createdAt || new Date().toISOString(),
+  })
+}
 
-  // 1. Verificação local de deduplicação
-  if (isOrderAlreadyReported(orderRef)) {
-    console.info(`[NovaesWeb] Pedido ${orderRef} já foi contabilizado anteriormente. Deduplicação ativa.`)
-    return { success: true, deduplicated: true }
-  }
+/**
+ * Esvazia a fila de eventos pendentes em background (quando online)
+ */
+export async function flushPendingOrderEvents(): Promise<void> {
+  const pending = getPendingEvents()
+  if (pending.length === 0) return
 
-  const storeId =
-    import.meta.env.VITE_NOVAESWEB_STORE_ID ||
-    import.meta.env.VITE_STORE_ID ||
-    'acai-do-rei-canoas'
-
-  const occurredAt = order.acceptedAt || order.createdAt || new Date().toISOString()
-
-  try {
-    // 2. Invoca a RPC oficial novaesweb_record_order_event
-    const { error: rpcError } = await supabase.rpc('novaesweb_record_order_event', {
-      p_store_id: storeId,
-      p_order_ref: orderRef,
-      p_event_type: 'accepted',
-      p_occurred_at: occurredAt,
-    })
-
-    if (!rpcError) {
-      markOrderReported(orderRef)
-      console.log(`[NovaesWeb] Pedido aceito ${orderRef} registrado com sucesso via RPC principal.`)
-      return { success: true }
+  for (const item of pending) {
+    try {
+      await supabase.rpc('novaesweb_record_order_event', {
+        p_store_id: item.storeId,
+        p_order_ref: item.params.orderRef,
+        p_event_type: item.params.eventType,
+        p_status_from: item.params.statusFrom || null,
+        p_status_to: item.params.statusTo || null,
+        p_reason_category: item.params.reasonCategory || null,
+        p_occurred_at: item.params.occurredAt || item.queuedAt,
+      })
+      removePendingEvent(item.id)
+    } catch {
+      // Re-tenta no próximo ciclo
     }
-
-    // 3. Fallback retrocompatível com a RPC legada
-    const { error: fallbackError } = await supabase.rpc('novaesweb_record_order_accepted', {
-      p_store_id: storeId,
-      p_order_ref: orderRef,
-      p_accepted_at: occurredAt,
-    })
-
-    if (!fallbackError) {
-      markOrderReported(orderRef)
-      console.log(`[NovaesWeb] Pedido aceito ${orderRef} registrado via RPC fallback.`)
-      return { success: true }
-    }
-
-    // Mesmo com erro de RPC (ex: store_id em ambiente local de teste), marcamos deduplicação local
-    markOrderReported(orderRef)
-    return { success: true, error: rpcError.message }
-  } catch (err: any) {
-    // Falha silenciosa para NUNCA travar a operação de venda do lojista
-    console.error('[NovaesWeb] Aviso ao reportar evento de franquia:', err)
-    markOrderReported(orderRef)
-    return { success: false, error: err?.message || 'Erro de conexão' }
   }
+}
+
+// Configura listener para esvaziar fila quando a conexão for reestabelecida
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => void flushPendingOrderEvents())
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void flushPendingOrderEvents()
+    }
+  })
 }

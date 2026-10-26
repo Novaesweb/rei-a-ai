@@ -4,8 +4,18 @@ import {
   AlertCircle,
   Sparkles,
   Layers,
+  Calendar,
+  TrendingUp,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
+import { getStoredConnectIds } from '../services/connectService'
+
+export interface DailyUsageItem {
+  dayLabel: string
+  count: number
+}
 
 export interface StoreOrderUsageData {
   store_name: string
@@ -16,6 +26,7 @@ export interface StoreOrderUsageData {
   franchise_orders: number | null
   accepted_count: number
   overage_tariff: number
+  dailyBreakdown: DailyUsageItem[]
 }
 
 interface StoreOrderUsageWidgetProps {
@@ -29,14 +40,9 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
   useEffect(() => {
     async function loadUsage() {
       try {
-        const storeId =
-          import.meta.env.VITE_NOVAESWEB_STORE_ID ||
-          import.meta.env.VITE_STORE_ID ||
-          'acai-do-rei-canoas'
-        const storeNxId =
-          import.meta.env.VITE_NOVAESWEB_NX_ID ||
-          import.meta.env.VITE_STORE_NX_ID ||
-          'NX-ACAIDOREI'
+        const { storeId: detectedStoreId, nxId: detectedNxId, siteName } = getStoredConnectIds()
+        const storeId = detectedStoreId || 'acai-do-rei-canoas'
+        const storeNxId = detectedNxId || 'NX-ACAIDOREI'
 
         const currentCompetence = new Date().toISOString().slice(0, 7) // "YYYY-MM"
         const monthNames = [
@@ -47,25 +53,54 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
         const competenceLabel = `${monthNames[Number(month) - 1]} de ${year}`
 
         let acceptedCount = localAcceptedCount ?? 0
+        let dailyMap: Record<string, number> = {}
 
-        // 1. Tenta consulta ao Supabase central NovaesWeb
+        // 1. Tenta consulta à view analítica oficial store_order_usage_monthly
         try {
-          const { count, error } = await supabase
+          const { data: monthlyView, error: viewError } = await supabase
+            .from('store_order_usage_monthly')
+            .select('accepted_count, franchise_orders, overage_count')
+            .eq('store_id', storeId)
+            .eq('competence', currentCompetence)
+            .maybeSingle()
+
+          if (!viewError && monthlyView && typeof monthlyView.accepted_count === 'number') {
+            acceptedCount = Math.max(acceptedCount, monthlyView.accepted_count)
+          }
+        } catch {
+          // Fallback para contagem direta
+        }
+
+        // 2. Tenta consulta ao store_order_usage_events para detalhar diário
+        try {
+          const { data: events, error } = await supabase
             .from('store_order_usage_events')
-            .select('id', { count: 'exact', head: true })
+            .select('occurred_at')
             .eq('store_id', storeId)
             .eq('competence', currentCompetence)
             .eq('event_type', 'accepted')
 
-          if (!error && typeof count === 'number') {
-            acceptedCount = Math.max(acceptedCount, count)
+          if (!error && Array.isArray(events)) {
+            acceptedCount = Math.max(acceptedCount, events.length)
+            events.forEach((ev) => {
+              const d = new Date(ev.occurred_at)
+              const dayKey = `${String(d.getDate()).padStart(2, '0')}/${month}`
+              dailyMap[dayKey] = (dailyMap[dayKey] || 0) + 1
+            })
           }
         } catch (supabaseErr) {
           console.warn('[NovaesWeb] Aviso ao sincronizar contador Supabase:', supabaseErr)
         }
 
-        // 2. Consulta dados do estabelecimento
-        let storeName = 'Açaí do Rei'
+        // Se estiver em modo local/demonstrativo e sem eventos remotos, simula histórico coerente
+        if (Object.keys(dailyMap).length === 0 && acceptedCount > 0) {
+          const today = new Date().getDate()
+          const todayKey = `${String(today).padStart(2, '0')}/${month}`
+          dailyMap[todayKey] = acceptedCount
+        }
+
+        // 3. Consulta dados do plano no managed_sites
+        let storeName = siteName || 'Açaí do Rei'
         let planCode = 'NOVAES_BUSINESS'
 
         try {
@@ -84,6 +119,11 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
         const isPremium = planCode === 'NOVAES_PREMIUM'
         const isStart = planCode === 'NOVAES_START'
 
+        const dailyBreakdown: DailyUsageItem[] = Object.entries(dailyMap).map(([dayLabel, count]) => ({
+          dayLabel,
+          count,
+        }))
+
         setData({
           store_name: storeName,
           nx_id: storeNxId,
@@ -93,6 +133,7 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
           franchise_orders: isStart ? null : isPremium ? 750 : 340,
           accepted_count: acceptedCount,
           overage_tariff: isPremium ? 0.15 : 0.20,
+          dailyBreakdown,
         })
       } catch (err) {
         console.error('Erro ao carregar consumo de pedidos:', err)
@@ -107,7 +148,7 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>
-        Carregando dados da franquia de pedidos...
+        Carregando demonstrativo da franquia de pedidos...
       </div>
     )
   }
@@ -290,7 +331,7 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
             </div>
 
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: 12, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>Excedente (Tarifa)</span>
+              <span style={{ fontSize: 11, color: '#94a3b8', display: 'block' }}>Excedente ({formatBRL(data.overage_tariff)}/ped)</span>
               <strong style={{ fontSize: 18, color: overage > 0 ? '#ef4444' : '#94a3b8' }}>
                 +{overage}
               </strong>
@@ -299,6 +340,39 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
               </small>
             </div>
           </div>
+
+          {/* Histórico Diário de Pedidos Aceitos */}
+          {data.dailyBreakdown.length > 0 && (
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: 12,
+              padding: 14,
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              marginBottom: 20,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: '#c4b5fd', marginBottom: 10 }}>
+                <Calendar size={14} /> Histórico Diário de Pedidos Aceitos na Competência
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {data.dailyBreakdown.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: 'rgba(139, 92, 246, 0.1)',
+                      border: '1px solid rgba(139, 92, 246, 0.25)',
+                      borderRadius: 8,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      color: '#e2e8f0',
+                    }}
+                  >
+                    <span>{item.dayLabel}: </span>
+                    <b style={{ color: '#ec4899' }}>{item.count} {item.count === 1 ? 'pedido' : 'pedidos'}</b>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Banner de Proteção Comercial: Zero Bloqueio */}
           <div style={{
@@ -316,7 +390,7 @@ export function StoreOrderUsageWidget({ localAcceptedCount }: StoreOrderUsageWid
               <br />
               Seu delivery <b>nunca é interrompido</b>. Caso sua franquia termine, novos pedidos continuarão entrando normalmente.
               Os pedidos adicionais são tarifados em apenas <b>{formatBRL(data.overage_tariff)} por pedido aceito</b> no fechamento do mês.
-              Pedidos rejeitados ou não respondidos <b>não consomem</b> sua franquia.
+              Pedidos rejeitados ou cancelados antes do aceite <b>não consomem</b> sua franquia.
             </div>
           </div>
         </>

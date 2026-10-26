@@ -17,7 +17,11 @@ import {
   DEFAULT_PRODUCTS,
   DEFAULT_STORE_CONFIG,
 } from '../data/initialData'
-import { reportOrderAcceptedToMaster } from '../lib/novaeswebUsage'
+import {
+  reportOrderAcceptedToMaster,
+  recordOrderLifecycleEvent,
+  OrderCancellationCategory,
+} from '../lib/novaeswebUsage'
 import { playOrderAlertSound } from '../lib/sound'
 import {
   StoreAvailability,
@@ -78,8 +82,14 @@ interface StoreContextType {
     notes?: string
   }) => Order
   acceptOrder: (orderId: string) => Promise<void>
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void
-  rejectOrder: (orderId: string, reason?: string) => void
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>
+  rejectOrder: (orderId: string, reason?: string) => Promise<void>
+  cancelOrder: (
+    orderId: string,
+    reasonCategory: OrderCancellationCategory,
+    reasonDetails?: string
+  ) => Promise<void>
+  hideOrder: (orderId: string) => Promise<void>
   trackedOrderId: string | null
   setTrackedOrderId: (id: string | null) => void
 
@@ -497,21 +507,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Apenas se ainda não foi reportado, invoca o Master
     if (!wasAlreadyRecorded) {
-      await reportOrderAcceptedToMaster({
-        id: target.id,
-        createdAt: target.createdAt,
-        acceptedAt: now,
+      await recordOrderLifecycleEvent({
+        orderRef: target.id,
+        eventType: 'accepted',
+        statusFrom: target.status,
+        statusTo: 'preparing',
+        occurredAt: now,
       })
     }
   }
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    const target = orders.find((o) => o.id === orderId)
+    const prevStatus = target?.status || 'pending'
+
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status } : o))
     )
+
+    if (status === 'delivered') {
+      await recordOrderLifecycleEvent({
+        orderRef: orderId,
+        eventType: 'delivered',
+        statusFrom: prevStatus,
+        statusTo: 'delivered',
+      })
+    }
   }
 
-  const rejectOrder = (orderId: string, reason?: string) => {
+  const rejectOrder = async (orderId: string, reason?: string) => {
+    const target = orders.find((o) => o.id === orderId)
+    const prevStatus = target?.status || 'pending'
+
     // Pedidos rejeitados NÃO consom a franquia da NovaesWeb
     setOrders((prev) =>
       prev.map((o) =>
@@ -520,6 +547,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           : o
       )
     )
+
+    await recordOrderLifecycleEvent({
+      orderRef: orderId,
+      eventType: 'rejected',
+      statusFrom: prevStatus,
+      statusTo: 'rejected',
+    })
+  }
+
+  const cancelOrder = async (
+    orderId: string,
+    reasonCategory: OrderCancellationCategory,
+    reasonDetails?: string
+  ) => {
+    const target = orders.find((o) => o.id === orderId)
+    const prevStatus = target?.status || 'preparing'
+
+    // Pedido aceito e depois cancelado CONTINUA contabilizado na franquia
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: 'cancelled',
+              rejectionReason: reasonDetails || 'Pedido cancelado após aceite.',
+              cancellationCategory: reasonCategory,
+            }
+          : o
+      )
+    )
+
+    await recordOrderLifecycleEvent({
+      orderRef: orderId,
+      eventType: 'cancelled',
+      statusFrom: prevStatus,
+      statusTo: 'cancelled',
+      reasonCategory,
+    })
+  }
+
+  const hideOrder = async (orderId: string) => {
+    // Excluir ou ocultar no painel NÃO remove da contagem da franquia
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, hidden: true } : o))
+    )
+
+    await recordOrderLifecycleEvent({
+      orderRef: orderId,
+      eventType: 'hidden',
+    })
   }
 
   return (
@@ -555,6 +632,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         acceptOrder,
         updateOrderStatus,
         rejectOrder,
+        cancelOrder,
+        hideOrder,
         trackedOrderId,
         setTrackedOrderId,
         soundAlertsEnabled,
