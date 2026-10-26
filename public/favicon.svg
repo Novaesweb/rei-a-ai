@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b2cff" />
+      <stop offset="100%" stop-color="#ec4899" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="#130d26" />
+  <circle cx="50" cy="50" r="38" fill="url(#grad)" />
+  <!-- Crown for Açaí do Rei -->
+  <path d="M30 65 L70 65 L66 42 L56 52 L50 36 L44 52 L34 42 Z" fill="#ffd700" stroke="#b45309" stroke-width="2" stroke-linejoin="round" />
+  <circle cx="34" cy="40" r="3" fill="#ffffff" />
+  <circle cx="50" cy="34" r="3.5" fill="#ffffff" />
+  <circle cx="66" cy="40" r="3" fill="#ffffff" />
+</svg>
