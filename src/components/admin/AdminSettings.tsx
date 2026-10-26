@@ -9,6 +9,7 @@ import {
   Power,
   DollarSign,
   Phone,
+  Lock,
 } from 'lucide-react'
 import { useStore } from '../../context/StoreContext'
 
@@ -29,6 +30,7 @@ export const AdminSettings: React.FC = () => {
   const [pixBeneficiary, setPixBeneficiary] = useState(config.pixBeneficiary)
   const [deliveryFee, setDeliveryFee] = useState(String(config.deliveryFee))
   const [manualOverride, setManualOverride] = useState(config.manualOpenOverride)
+  const [adminPassword, setAdminPassword] = useState(config.adminPassword || '123456')
 
   const handleSaveAll = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +47,7 @@ export const AdminSettings: React.FC = () => {
       pixBeneficiary: pixBeneficiary.trim(),
       deliveryFee: parseFloat(deliveryFee.replace(',', '.')) || 0,
       manualOpenOverride: manualOverride,
+      adminPassword: adminPassword.trim() || '123456',
     })
 
     setSavedSuccess(true)
@@ -286,6 +289,26 @@ export const AdminSettings: React.FC = () => {
               </span>
             </div>
           ))}
+        </div>
+
+        {/* Senha de Acesso Rápido / PIN */}
+        <div className="pt-2 border-t border-[#231846]">
+          <div className="max-w-md">
+            <label className="text-[11px] text-slate-400 block mb-1 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-[#ec4899]" />
+              <span>Senha / PIN de Acesso Local do Painel</span>
+            </label>
+            <input
+              type="text"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              placeholder="Ex: 123456"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#181133] border border-[#2b1f58] text-white text-xs font-mono focus:outline-none focus:border-[#8b2cff]"
+            />
+            <p className="text-[10px] text-slate-500 mt-1">
+              Esta senha permite o login rápido da equipe de atendimento sem expor a conta principal do Supabase.
+            </p>
+          </div>
         </div>
       </div>
 

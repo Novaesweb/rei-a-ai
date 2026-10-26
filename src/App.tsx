@@ -17,6 +17,7 @@ import { AdminSettings } from './components/admin/AdminSettings'
 import { AdminPlan } from './components/admin/AdminPlan'
 import { AdminOwnerMessages } from './components/admin/AdminOwnerMessages'
 import { ConnectGate } from './components/admin/ConnectGate'
+import { AdminLogin } from './components/admin/AdminLogin'
 import { SiteSuspendedScreen } from './components/SiteSuspendedScreen'
 
 export const AppContent: React.FC = () => {
@@ -24,6 +25,7 @@ export const AppContent: React.FC = () => {
     currentView,
     setCurrentView,
     activeAdminTab,
+    isAdminAuthenticated,
     categories,
     products,
     selectedProductForModal,
@@ -45,6 +47,10 @@ export const AppContent: React.FC = () => {
     : activeProducts
 
   if (currentView === 'admin') {
+    if (!isAdminAuthenticated) {
+      return <AdminLogin onBackToStore={() => setCurrentView('store')} />
+    }
+
     return (
       <div className="min-h-screen bg-[#0a0714] text-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
         <AdminHeader />

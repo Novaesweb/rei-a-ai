@@ -29,8 +29,15 @@ import {
 } from '../services/storeAvailabilityService'
 import { getStoredConnectIds } from '../services/connectService'
 import { getOwnerMessages } from '../services/ownerMessageService'
+import { supabase } from '../lib/supabaseClient'
 
 interface StoreContextType {
+  // Admin Auth
+  isAdminAuthenticated: boolean
+  adminUser: { email: string; name: string; role?: string } | null
+  loginAdmin: (user: { email: string; name: string; role?: string }, remember?: boolean) => void
+  logoutAdmin: () => void
+
   // Store Config & Status
   config: StoreConfig
   updateConfig: (newConfig: Partial<StoreConfig>) => void
@@ -116,9 +123,93 @@ const STORAGE_KEYS = {
   CATEGORIES: 'acai_do_rei_categories_v1',
   ORDERS: 'acai_do_rei_orders_v1',
   SOUND_ENABLED: 'acai_do_rei_sound_enabled',
+  ADMIN_SESSION: 'acai_do_rei_admin_session_v1',
 }
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Admin Auth State
+  const [adminUser, setAdminUser] = useState<{ email: string; name: string; role?: string } | null>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION) || sessionStorage.getItem(STORAGE_KEYS.ADMIN_SESSION)
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION) || sessionStorage.getItem(STORAGE_KEYS.ADMIN_SESSION)
+      return !!stored
+    } catch {
+      return false
+    }
+  })
+
+  // Sincroniza sessão ativa do Supabase se houver
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        setIsAdminAuthenticated(true)
+        setAdminUser((prev) => {
+          if (prev) return prev
+          const userObj = {
+            email: data.session.user.email || 'lojista@novaesweb.com',
+            name: data.session.user.user_metadata?.full_name || 'Proprietário Açaí do Rei',
+            role: 'owner',
+          }
+          try {
+            localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(userObj))
+          } catch {}
+          return userObj
+        })
+      }
+    })
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setIsAdminAuthenticated(true)
+        const userObj = {
+          email: session.user.email || 'lojista@novaesweb.com',
+          name: session.user.user_metadata?.full_name || 'Proprietário Açaí do Rei',
+          role: 'owner',
+        }
+        setAdminUser(userObj)
+      }
+    })
+
+    return () => {
+      authListener?.subscription?.unsubscribe()
+    }
+  }, [])
+
+  const loginAdmin = (user: { email: string; name: string; role?: string }, remember: boolean = true) => {
+    setAdminUser(user)
+    setIsAdminAuthenticated(true)
+    try {
+      if (remember) {
+        localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(user))
+      } else {
+        sessionStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(user))
+      }
+    } catch (e) {
+      console.error('Falha ao salvar sessão administrativa:', e)
+    }
+  }
+
+  const logoutAdmin = () => {
+    setAdminUser(null)
+    setIsAdminAuthenticated(false)
+    try {
+      localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION)
+      sessionStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION)
+      supabase.auth.signOut().catch(() => {})
+    } catch (e) {
+      console.error('Falha ao remover sessão administrativa:', e)
+    }
+    setCurrentView('store')
+  }
+
   // Store Config
   const [config, setConfig] = useState<StoreConfig>(() => {
     try {
@@ -149,95 +240,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   })
 
-  // Orders
+  // Orders (Inicializa limpo sem pedidos demonstrativos)
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.ORDERS)
-      if (saved) return JSON.parse(saved)
-      
-      // Pedidos demonstrativos iniciais
-      const demoDate = new Date().toISOString()
-      return [
-        {
-          id: 'REI-1024',
-          createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-          status: 'pending',
-          deliveryType: 'delivery',
-          customer: {
-            name: 'Lucas Silveira',
-            phone: '(51) 99123-4567',
-            neighborhood: 'Marechal Rondon',
-            street: 'Av. Santos Ferreira',
-            number: '1240',
-            complement: 'Apto 302',
-          },
-          items: [
-            {
-              cartItemId: 'demo-item-1',
-              product: DEFAULT_PRODUCTS[1], // Copo Real 500ml
-              selectedComplements: [
-                {
-                  groupId: 'grp-free',
-                  groupTitle: 'Grátis',
-                  item: { id: 'top-leite-ninho', name: 'Leite Ninho em pó', price: 0 },
-                },
-                {
-                  groupId: 'grp-free',
-                  groupTitle: 'Grátis',
-                  item: { id: 'top-morango', name: 'Morango fatiado fresco', price: 0 },
-                },
-                {
-                  groupId: 'grp-paid',
-                  groupTitle: 'Adicionais',
-                  item: { id: 'extra-nutella', name: 'Nutella Ferrero autêntica', price: 5.5 },
-                },
-              ],
-              observations: 'Favor caprichar no morango no topo!',
-              unitPrice: 28.4,
-              quantity: 1,
-              totalPrice: 28.4,
-            },
-          ],
-          subtotal: 28.4,
-          deliveryFee: 5.0,
-          total: 33.4,
-          paymentMethod: 'pix',
-        },
-        {
-          id: 'REI-1023',
-          createdAt: new Date(Date.now() - 40 * 60000).toISOString(),
-          acceptedAt: new Date(Date.now() - 35 * 60000).toISOString(),
-          acceptedRecorded: true,
-          status: 'preparing',
-          deliveryType: 'pickup',
-          customer: {
-            name: 'Camila Fernandes',
-            phone: '(51) 98844-2211',
-          },
-          items: [
-            {
-              cartItemId: 'demo-item-2',
-              product: DEFAULT_PRODUCTS[4], // Tigela Real Morango & Nutella
-              selectedComplements: [],
-              unitPrice: 27.9,
-              quantity: 1,
-              totalPrice: 27.9,
-            },
-            {
-              cartItemId: 'demo-item-3',
-              product: DEFAULT_PRODUCTS[13], // Milkshake Açaí
-              selectedComplements: [],
-              unitPrice: 19.9,
-              quantity: 1,
-              totalPrice: 19.9,
-            },
-          ],
-          subtotal: 47.8,
-          deliveryFee: 0,
-          total: 47.8,
-          paymentMethod: 'card',
-        },
-      ]
+      if (saved) {
+        const parsed: Order[] = JSON.parse(saved)
+        // Filtra e descarta quaisquer pedidos antigos de demonstração
+        const cleanOrders = parsed.filter(
+          (o) =>
+            o.id !== 'REI-1024' &&
+            o.id !== 'REI-1023' &&
+            !o.items.some((it) => it.cartItemId.startsWith('demo-item'))
+        )
+        return cleanOrders
+      }
+      return []
     } catch {
       return []
     }
@@ -602,6 +620,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <StoreContext.Provider
       value={{
+        isAdminAuthenticated,
+        adminUser,
+        loginAdmin,
+        logoutAdmin,
         config,
         updateConfig,
         isStoreOpenNow,

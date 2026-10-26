@@ -27,6 +27,7 @@ export const DEFAULT_STORE_CONFIG: StoreConfig = {
     { id: 'admin-1', email: 'gerencia@acaidorei.com.br', name: 'Gestor Principal' },
     { id: 'admin-2', email: 'atendimento@acaidorei.com.br', name: 'Atendente Operacional' },
   ],
+  adminPassword: '123456',
 }
 
 export const DEFAULT_CATEGORIES: Category[] = [

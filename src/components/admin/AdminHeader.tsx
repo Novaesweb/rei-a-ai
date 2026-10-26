@@ -12,6 +12,8 @@ import {
   Play,
   MessageSquare,
   Globe,
+  LogOut,
+  User,
 } from 'lucide-react'
 import { useStore } from '../../context/StoreContext'
 import { getStoredConnectIds } from '../../services/connectService'
@@ -28,6 +30,8 @@ export const AdminHeader: React.FC = () => {
     playAlertSound,
     config,
     unreadMessagesCount,
+    adminUser,
+    logoutAdmin,
   } = useStore()
 
   const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length
@@ -92,13 +96,41 @@ export const AdminHeader: React.FC = () => {
               )}
             </button>
 
+            {/* Informações do Usuário Autenticado */}
+            {adminUser && (
+              <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#170f30] border border-[#2e215e] text-xs">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-[#8b2cff] to-[#ec4899] flex items-center justify-center text-white text-[10px] font-bold">
+                  {adminUser.name?.charAt(0) || 'G'}
+                </div>
+                <div className="text-left">
+                  <span className="text-[11px] font-bold text-white block leading-tight">
+                    {adminUser.name || 'Gestor'}
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-mono block leading-tight">
+                    {adminUser.email}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Voltar para a Loja Pública */}
             <button
               onClick={() => setCurrentView('store')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#8b2cff] hover:bg-[#7a22e6] text-white text-xs font-bold transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#231749] hover:bg-[#2e1f5e] border border-[#3f2c7a] text-slate-200 text-xs font-semibold transition-all"
+              title="Visualizar a loja como cliente"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Ver Loja</span>
+              <ArrowLeft className="w-3.5 h-3.5 text-[#ec4899]" />
+              <span className="hidden sm:inline">Ver Loja</span>
+            </button>
+
+            {/* Encerrar Sessão / Logout */}
+            <button
+              onClick={logoutAdmin}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 hover:text-white text-xs font-bold transition-all shadow-sm"
+              title="Encerrar sessão do painel administrativo"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sair</span>
             </button>
           </div>
         </div>

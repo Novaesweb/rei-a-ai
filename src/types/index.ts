@@ -105,4 +105,5 @@ export interface StoreConfig {
   manualOpenOverride: 'auto' | 'open' | 'closed'
   schedule: Record<string, StoreScheduleDay> // mon, tue, wed, thu, fri, sat, sun
   adminUsers: { id: string; email: string; name: string }[]
+  adminPassword?: string
 }
