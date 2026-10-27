@@ -224,7 +224,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES)
-      return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES
+      if (saved) {
+        const parsed: Category[] = JSON.parse(saved)
+        return parsed.map((cat) => {
+          const defaultCat = DEFAULT_CATEGORIES.find((d) => d.id === cat.id)
+          return {
+            ...cat,
+            image: cat.image || defaultCat?.image,
+          }
+        })
+      }
+      return DEFAULT_CATEGORIES
     } catch {
       return DEFAULT_CATEGORIES
     }

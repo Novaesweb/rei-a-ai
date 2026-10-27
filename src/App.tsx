@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { useStore } from './context/StoreContext'
 import { Header } from './components/Header'
 import { Hero } from './components/Hero'
-import { CategoryBar } from './components/CategoryBar'
+import { CategoryGrid } from './components/CategoryGrid'
 import { ProductCard } from './components/ProductCard'
 import { ProductModal } from './components/ProductModal'
 import { CartDrawer } from './components/CartDrawer'
@@ -115,78 +116,130 @@ export const AppContent: React.FC = () => {
       {/* Header Público */}
       <Header />
 
-      {/* Hero Promocional */}
-      <Hero />
-
       {/* Acompanhamento de Pedido Ativo (se houver) */}
       {trackedOrderId && <OrderStatusTracker />}
 
-      {/* Barra Rápida de Categorias */}
-      <CategoryBar
-        categories={categories}
-        selectedCategoryId={selectedCategoryFilter}
-        onSelectCategory={setSelectedCategoryFilter}
-      />
+      {selectedCategoryFilter === null ? (
+        <>
+          {/* Hero Promocional (Apenas na tela inicial de categorias) */}
+          <Hero />
 
-      {/* Grade de Produtos */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {selectedCategoryFilter ? (
-          // Exibe categoria selecionada
-          <div className="space-y-6">
-            <div className="flex items-center justify-between pb-2 border-b border-[#231846]">
-              <h2 className="text-xl sm:text-2xl font-black text-white font-['Outfit']">
-                {categories.find((c) => c.id === selectedCategoryFilter)?.name}
-              </h2>
-              <span className="text-xs text-slate-400">
-                {displayedProducts.length} itens disponíveis
-              </span>
-            </div>
+          {/* Grade Oficial de Categorias em Quadrados (Estilo Burger House Reference) */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+            <CategoryGrid
+              categories={categories}
+              products={products}
+              onSelectCategory={(catId) => {
+                setSelectedCategoryFilter(catId)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            />
+          </main>
+        </>
+      ) : (
+        <>
+          {/* Barra Superior Focada com Botão Voltar às Categorias */}
+          <div className="sticky top-20 z-30 bg-[#0a0714]/95 backdrop-blur-md border-b border-[#281c52] py-3.5">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategoryFilter(null)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1b1238] hover:bg-[#281b52] border border-[#3b2b73] text-white text-xs sm:text-sm font-bold transition-all shadow-md group shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4 text-[#ec4899] group-hover:-translate-x-1 transition-transform" />
+                <span>← Voltar para Categorias</span>
+              </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-              {displayedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {/* Atalho Rápido para Alternar entre Categorias */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+                {categories.map((cat) => {
+                  const isCurrent = cat.id === selectedCategoryFilter
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategoryFilter(cat.id)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+                        isCurrent
+                          ? 'bg-gradient-to-r from-[#8b2cff] to-[#ec4899] text-white shadow-neon-primary'
+                          : 'bg-[#150f2e] text-slate-400 hover:text-white border border-[#2b1f58]'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        ) : (
-          // Exibe agrupado por todas as categorias
-          <div className="space-y-12">
-            {categories.map((category) => {
-              const categoryProducts = activeProducts.filter(
-                (p) => p.categoryId === category.id
-              )
 
-              if (categoryProducts.length === 0) return null
-
+          {/* Conteúdo Focado da Categoria Selecionada */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 animate-fade-in">
+            {(() => {
+              const currentCat = categories.find((c) => c.id === selectedCategoryFilter)
               return (
-                <section key={category.id} className="space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1 pb-2 border-b border-[#231846]">
-                    <div>
-                      <h2 className="text-xl sm:text-2xl font-black text-white font-['Outfit']">
-                        {category.name}
-                      </h2>
-                      {category.description && (
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          {category.description}
+                <div className="space-y-6">
+                  {/* Banner / Cabeçalho da Categoria com Imagem */}
+                  <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#1c0d38] via-[#2a0e3b] to-[#160829] border border-[#3e1f6e] flex flex-col sm:flex-row items-center gap-6 shadow-2xl">
+                    {currentCat?.image && (
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-2xl border border-white/10 shrink-0">
+                        <img
+                          src={currentCat.image}
+                          alt={currentCat.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="text-center sm:text-left space-y-1.5 flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <h1 className="text-2xl sm:text-3xl font-black text-white font-['Outfit']">
+                          {currentCat?.name}
+                        </h1>
+                        <span className="text-xs text-[#f472b6] font-bold px-3 py-1 rounded-full bg-[#ec4899]/10 border border-[#ec4899]/30 inline-block">
+                          {displayedProducts.length} itens disponíveis
+                        </span>
+                      </div>
+                      {currentCat?.description && (
+                        <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                          {currentCat.description}
                         </p>
                       )}
                     </div>
-                    <span className="text-xs text-slate-500 font-medium">
-                      {categoryProducts.length} opções
-                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {categoryProducts.map((product) => (
-                      <ProductCard key={product.id} product={product} />
-                    ))}
-                  </div>
-                </section>
+                  {/* Grade de Produtos da Categoria */}
+                  {displayedProducts.length === 0 ? (
+                    <div className="p-12 text-center rounded-3xl bg-[#120c24] border border-[#281c52] space-y-3">
+                      <p className="text-slate-400 text-sm">
+                        Nenhum produto disponível nesta categoria no momento.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCategoryFilter(null)}
+                        className="px-4 py-2 rounded-xl bg-[#8b2cff] text-white text-xs font-bold"
+                      >
+                        Voltar para Categorias
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                      {displayedProducts.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )
-            })}
-          </div>
-        )}
-      </main>
+            })()}
+          </main>
+        </>
+      )}
 
       {/* Modal de Customização do Produto */}
       {selectedProductForModal && (

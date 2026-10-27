@@ -36,36 +36,42 @@ export const DEFAULT_CATEGORIES: Category[] = [
     name: 'Copos Tradicionais do Rei',
     description: 'Monte do seu jeito com complementos inclusos e textura aveludada',
     icon: 'IceCream',
+    image: '/images/copo-500.jpg',
   },
   {
     id: 'cat-tigelas',
     name: 'Tigelas & Taças Gourmet',
     description: 'Combinações premiadas com frutas frescas, cremes artesanais e chocolates',
     icon: 'Bowl',
+    image: '/images/acai-strawberry-blueberry.jpg',
   },
   {
     id: 'cat-barcas',
     name: 'Barcas da Realeza',
     description: 'Para dividir com a galera ou a família, cheia de camadas e guloseimas',
     icon: 'Sparkles',
+    image: '/images/acai-tray-toppings.jpg',
   },
   {
     id: 'cat-zero-fit',
     name: 'Linha Fit & Zero Açúcar',
     description: 'Açaí puro nativo com zero açúcar adicionado, ideal para pré e pós treino',
     icon: 'Heart',
+    image: '/images/acai-berry-bowl.jpg',
   },
   {
     id: 'cat-cremes',
     name: 'Cremes Tropicais & Cupuaçu',
     description: 'Cremes de cupuaçu da Amazônia e pitaya rosa com textura inigualável',
     icon: 'Flame',
+    image: '/images/creme-cupuacu-castanhas.jpg',
   },
   {
     id: 'cat-shakes',
     name: 'Smoothies & Milkshakes',
     description: 'Batidos super gelados e cremosos para tomar de canudo',
     icon: 'CupSoda',
+    image: '/images/milkshake.jpg',
   },
 ]
 
