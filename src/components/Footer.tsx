@@ -75,17 +75,24 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
-        {/* Rodapé Comercial NovaesWeb */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
-          <div>
-            © {new Date().getFullYear()} Açaí do Rei • Canoas - RS. Todos os direitos reservados.
-          </div>
-          <div className="flex items-center gap-2">
-            <span>Desenvolvido na plataforma oficial</span>
-            <span className="font-bold text-slate-300">NovaesWeb Business</span>
-            <span className="px-2 py-0.5 rounded-full bg-[#1e153b] text-[#f472b6] font-semibold border border-[#352566]">
-              Franquia 340 Pedidos
-            </span>
+        {/* Rodapé Comercial NovaesWeb e Controle de Versão (v5.2) */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+          {/* Copyright e Versão */}
+          <p className="novaesweb-copyright text-center sm:text-left text-slate-400">
+            © {new Date().getFullYear()} {config.name} • Canoas - RS. Todos os direitos reservados. • <strong className="text-slate-300 font-bold">v5.2</strong>
+          </p>
+
+          {/* Assinatura Institucional com Coração e Link Oficial */}
+          <div className="novaesweb-footer-signature flex items-center justify-center gap-1.5 text-slate-400">
+            <span>Feito com <span className="novaesweb-heart inline-block hover:scale-125 transition-transform duration-200 cursor-default animate-pulse select-none" title="Amor pelo que fazemos">❤️</span> por </span>
+            <a
+              href="https://novaesweb.com.br"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="novaesweb-brand-link font-bold text-[#c4b5fd] hover:text-[#ec4899] transition-colors underline decoration-[#8b2cff]/40 underline-offset-4"
+            >
+              NovaesWeb
+            </a>
           </div>
         </div>
       </div>

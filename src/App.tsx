@@ -66,6 +66,31 @@ export const AppContent: React.FC = () => {
           {activeAdminTab === 'addons' && <AdminAddons />}
           {activeAdminTab === 'connect' && <ConnectGate />}
         </main>
+
+        {/* Rodapé Administrativo com Indicador de Versão (v5.2) */}
+        <footer className="border-t border-[#1b1236] py-4 px-4 text-xs text-slate-400 mt-auto bg-[#0a0714]/80">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div
+              className="novaesweb-version-badge flex items-center gap-2 px-3 py-1 rounded-full bg-[#140e2b] border border-[#2a1d56] text-[11px] text-slate-300 font-medium"
+              title="NovaesWeb Commerce Engine — Versão 5.2"
+            >
+              <span className="status-dot-green inline-block w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+              <span>v5.2 • Sistema Atualizado</span>
+            </div>
+
+            <div className="novaesweb-footer-signature flex items-center gap-1.5 text-slate-400 text-xs">
+              <span>NovaesWeb Commerce Engine • </span>
+              <a
+                href="https://novaesweb.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="novaesweb-brand-link text-[#c4b5fd] hover:text-[#ec4899] font-bold transition-colors"
+              >
+                NovaesWeb
+              </a>
+            </div>
+          </div>
+        </footer>
       </div>
     )
   }

@@ -260,9 +260,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onBackToStore }) => {
             <span>Voltar ao Cardápio</span>
           </button>
 
-          <span className="text-[10px] text-slate-500 font-mono">
-            Novaes Business v1.0
-          </span>
+          <div
+            className="novaesweb-version-badge flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181133] border border-[#2e215e] text-[10px] text-slate-300 font-mono"
+            title="NovaesWeb Commerce Engine — Versão 5.2"
+          >
+            <span className="status-dot-green inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+            <span>v5.2 • Atualizado</span>
+          </div>
         </div>
       </div>
     </div>

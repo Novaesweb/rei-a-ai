@@ -115,6 +115,7 @@ export async function performSiteCheckin(nxId?: string) {
     body: {
       action: 'site_checkin',
       nx_id: targetNxId,
+      engine_version: '5.2',
     },
   })
 

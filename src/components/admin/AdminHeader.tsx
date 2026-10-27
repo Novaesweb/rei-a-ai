@@ -55,6 +55,14 @@ export const AdminHeader: React.FC = () => {
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#8b2cff]/20 text-[#c4b5fd] border border-[#8b2cff]/40">
                   Painel Business
                 </span>
+                {/* Indicador de Versão da Plataforma */}
+                <div
+                  className="novaesweb-version-badge hidden sm:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#181133] border border-[#2e215e] text-[10px] text-slate-300 font-medium cursor-default"
+                  title="NovaesWeb Commerce Engine — Versão 5.2"
+                >
+                  <span className="status-dot-green inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                  <span>v5.2 • Sistema Atualizado</span>
+                </div>
               </div>
               <p className="text-xs text-slate-400">
                 Gestão Operacional de Pedidos & Delivery
